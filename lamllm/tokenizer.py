@@ -13,6 +13,11 @@ class CharTokenizer:
     def from_text(cls, text):
         return cls(sorted(set(text)))
 
+    @classmethod
+    def ascii(cls):
+        """Fixed vocabulary: newline plus printable ASCII. Used when text arrives during training."""
+        return cls(["\n"] + [chr(i) for i in range(32, 127)])
+
     @property
     def vocab_size(self):
         return len(self.chars)

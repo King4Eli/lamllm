@@ -2,8 +2,8 @@
 checkpoints/
 *.pt
 
-# Downloaded Wikipedia articles and generated training text
-data/wiki/
+# Downloaded training data
+data/sources/
 
 # Python
 __pycache__/
