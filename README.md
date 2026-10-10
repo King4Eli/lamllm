@@ -56,4 +56,11 @@ python ask.py --question "What is photosynthesis?"
 
 ### GPU
 
-An NVIDIA GPU (CUDA) or Intel GPU (XPU) is used automatically when PyTorch can see it; the log shows `device=`.
+`multi_train.py --device` picks the hardware; the first log line names it (e.g. `training on CPU: Intel(R) Core(TM) Ultra 7 355 (8 cores)`).
+
+| `--device` | Uses |
+|---|---|
+| `auto` (default) | A GPU if PyTorch can see one, otherwise the CPU |
+| `gpu` | Any GPU; stops with an error if none is usable |
+| `cpu` | The CPU, even if a GPU is available |
+| `cuda` / `xpu` / `mps` | Specifically NVIDIA / Intel / Apple Silicon |

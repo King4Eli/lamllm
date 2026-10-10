@@ -27,7 +27,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 from lamllm import CharTokenizer  # noqa: E402
-from lamllm.trainer import Corpus, checkpoint_exists, fit, tokenizer_for  # noqa: E402
+from lamllm.trainer import (  # noqa: E402
+    DEVICE_CHOICES, Corpus, checkpoint_exists, device_name, fit, get_device, tokenizer_for,
+)
 from websearch import sources  # noqa: E402
 
 CACHE_DIR = os.path.join(ROOT, "data", "sources")
@@ -106,6 +108,8 @@ def main():
     p.add_argument("--qa-repeat", type=int, default=3, help="how many times each Q/A pair appears")
     p.add_argument("--min-start-mb", type=float, default=0.3, help="data needed before training starts")
     p.add_argument("--out", default=os.path.join(ROOT, "checkpoints", "wiki"))
+    p.add_argument("--device", default="auto", choices=DEVICE_CHOICES,
+                   help="auto (GPU if available, else CPU), gpu (require a GPU), cpu, or a specific GPU type")
     p.add_argument("--fresh", action="store_true", help="train a new model instead of continuing the one in --out")
     p.add_argument("--steps", type=int, default=3000)
     p.add_argument("--batch-size", type=int, default=32)
@@ -119,6 +123,8 @@ def main():
     p.add_argument("--seed", type=int, default=1337)
     args = p.parse_args()
 
+    device = get_device(args.device)
+    print(f"training on {device_name(device)}")
     if args.contact:
         sources.set_contact(args.contact)
     names = [n.strip() for n in args.sources.split(",") if n.strip()]
@@ -161,7 +167,7 @@ def main():
 
     fit(corpus, args.out, steps=args.steps, batch_size=args.batch_size, block_size=args.block_size,
         n_layer=args.n_layer, n_head=args.n_head, n_embd=args.n_embd, dropout=args.dropout,
-        lr=lr, eval_every=args.eval_every, seed=args.seed, resume_from=resume_from)
+        lr=lr, eval_every=args.eval_every, seed=args.seed, resume_from=resume_from, device=device)
 
     print(f"downloads: {status(downloaders)}")
     if any(not d.done and not d.error for d in downloaders):

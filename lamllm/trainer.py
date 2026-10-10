@@ -4,6 +4,7 @@ Press Ctrl+C during training to stop early; the model is saved before exiting.
 """
 
 import os
+import platform
 import threading
 import time
 from dataclasses import asdict
@@ -14,14 +15,58 @@ from .model import LamConfig, LamLLM
 from .tokenizer import CharTokenizer
 
 
-def get_device():
+DEVICE_CHOICES = ["auto", "gpu", "cpu", "cuda", "xpu", "mps"]
+
+
+def _available_gpus():
+    gpus = []
     if torch.cuda.is_available():
-        return "cuda"
+        gpus.append("cuda")
     if hasattr(torch, "xpu") and torch.xpu.is_available():
-        return "xpu"  # Intel GPU
+        gpus.append("xpu")  # Intel GPU
     if torch.backends.mps.is_available():
-        return "mps"
-    return "cpu"
+        gpus.append("mps")  # Apple Silicon
+    return gpus
+
+
+def get_device(choice="auto"):
+    """Pick the device to run on.
+
+    auto: the first available GPU, else the CPU. gpu: the first available GPU, or
+    an error if there is none. cpu/cuda/xpu/mps: exactly that, or an error.
+    """
+    gpus = _available_gpus()
+    if choice == "auto":
+        return gpus[0] if gpus else "cpu"
+    if choice == "cpu":
+        return "cpu"
+    if choice == "gpu" and gpus:
+        return gpus[0]
+    if choice in gpus:
+        return choice
+    raise SystemExit(
+        f"--device {choice}: no usable GPU found. PyTorch {torch.__version__} sees "
+        f"{', '.join(gpus) or 'no GPU'}. For an Intel GPU, install Intel's GPU compute drivers "
+        f"(libze-intel-gpu1, libze1, intel-opencl-icd); for NVIDIA, a CUDA build of PyTorch "
+        f"and the NVIDIA driver. Use --device cpu or --device auto to train on the CPU."
+    )
+
+
+def device_name(device):
+    """Human-readable name of the hardware behind `device`, e.g. 'GPU: NVIDIA GeForce RTX 4070'."""
+    if device == "cuda":
+        return f"GPU: {torch.cuda.get_device_name(0)}"
+    if device == "xpu":
+        return f"GPU: {torch.xpu.get_device_name(0)}"
+    if device == "mps":
+        return "GPU: Apple Silicon"
+    name = platform.processor() or platform.machine()
+    try:
+        with open("/proc/cpuinfo") as f:
+            name = next(line.split(":", 1)[1].strip() for line in f if line.startswith("model name"))
+    except (OSError, StopIteration):
+        pass
+    return f"CPU: {name} ({os.cpu_count()} cores)"
 
 
 def get_batch(data, block_size, batch_size, device):
@@ -108,7 +153,8 @@ class Corpus:
 
 
 def fit(corpus, out, steps=2000, batch_size=32, block_size=128, n_layer=4, n_head=4,
-        n_embd=128, dropout=0.1, lr=3e-4, eval_every=200, refresh_every=50, seed=1337, resume_from=None):
+        n_embd=128, dropout=0.1, lr=3e-4, eval_every=200, refresh_every=50, seed=1337, resume_from=None,
+        device=None):
     """Train on `corpus`, pulling in newly added documents every `refresh_every` steps.
 
     With `resume_from` (a checkpoint dir), training continues from that model; its
@@ -116,7 +162,7 @@ def fit(corpus, out, steps=2000, batch_size=32, block_size=128, n_layer=4, n_hea
     checkpoint's tokenizer (see tokenizer_for).
     """
     torch.manual_seed(seed)
-    device = get_device()
+    device = device or get_device()
     tok = corpus.tok
     corpus.refresh()
 
