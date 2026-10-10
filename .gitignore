@@ -11,3 +11,6 @@ __pycache__/
 
 # Editor / OS
 .DS_Store
+train.log
+train.pid
+train-*.log
