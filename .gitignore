@@ -1,0 +1,13 @@
+# Trained models
+checkpoints/
+*.pt
+
+# Downloaded Wikipedia articles and generated training text
+data/wiki/
+
+# Python
+__pycache__/
+*.pyc
+
+# Editor / OS
+.DS_Store
